@@ -1,0 +1,32 @@
+%% A1
+load('calibration.mat')
+%Time Of Arrival(TOA) measurements(ycal) in seconds for N=59 measurements 
+%from 7 microphones during calibration
+ycal = y; %y is contained in calibration.mat
+[cal_timesteps, mics] = size(ycal); 
+
+%average TOA at each time step
+av_TOA = mean(ycal,2); %average time of arrival of every mic for each time step k
+
+%measurement errors of each microphone at each time step:
+%errors_cal(k,m) = ycal(k,m) - av_TOA(k) 
+for k = 1:cal_timesteps
+    for m =1:7 
+       epsilon(k,m) = av_TOA(k) - ycal(k,m);
+    end
+end
+
+%measurement bias bm of each microphone
+for m = 1:7 
+    bias(:,m) = epsilon(:,m) - ycal(:,m) + av_TOA ;
+end
+
+%variance of the measurement noise of each microphone
+noise_var = var(epsilon);
+
+%Visualise the measurement errors of one of the microphones
+e_1 = epsilon(:,1);
+%Histogram
+figure(1)
+hold on; grid on;
+title('Histogram of Measurement Error of Mic1')  
