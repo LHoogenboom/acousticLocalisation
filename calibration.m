@@ -54,13 +54,26 @@ for i = 1:7
     plot(experiment.mic_locations(i,1),experiment.mic_locations(i,2), 'ro')
 end
 
+sig = zeros(7,7);
+for i=1:7
+   sig(i,i) = mic.var(i);
+end
+
 %%
-test = Jacobian(th_hat0, experiment.mic_locations)
+[test, diagP] = nls(experiment.y,sig,th_hat0,10,experiment.mic_locations)
 
 %% Functions
-function [th_hat, diagP] = nls(yk,stds,th_hat0,maxiter,mic_locations)
-    th_hat = [th_hat0 ; zeros(length(experiment.y(:,1))-1,3)];
-
+function [th_hat, diagP] = nls(yk,sig,th_hat0,maxiter,mic_locations)
+    th_hat = [th_hat0 ; zeros(length(yk(:,1))-1,3)];
+    size(th_hat)
+    diagP = 0;
+    i=0;
+    while i<maxiter
+        J = Jacobian(th_hat0, mic_locations); % linearize model
+        dth = (J'*sig*J)^-1 * J'*sig*yk';
+        th_hat = th_hat+dth';
+        i = i+1;
+        end6t
 end
 
 function dF = Jacobian(theta,mic_locations)
@@ -72,20 +85,16 @@ function dF = Jacobian(theta,mic_locations)
 end
 
 function ftheta = f(th_hat,mic_locations)
-    % size th_hat = 3 by 7
-    % size ftheta = 7 by 1
     ftheta = zeros(length(mic_locations(:,1)),1);
-    size(ftheta)
     c = 343; % speed of sound in [m/s]
-    
     for m=1:7
         % f(theta)  = tau_k    + (1/c) * d
         %d_m(theta) = theta(3) + (1/c) * (theta-p_m)^T * (theta-p_m)
         %ftheta(m) = th_hat(3) + (1/c) * sqrt((th_hat(1:2)-mic_locations(m,:)) * (th_hat(1:2)-mic_locations(m,:))')
-        ftheta(m) = th_hat(3) + (1/c) * d(th_hat,mic_locations(m,:))
+        ftheta(m) = th_hat(3) + (1/c) * d(th_hat,mic_locations(m,:));
     end
 end
 
 function dist = d(th_hat,micloc)
-    dist = sqrt((th_hat(1:2)-micloc) * (th_hat(1:2)-micloc)')
+    dist = sqrt((th_hat(1:2)-micloc) * (th_hat(1:2)-micloc)');
 end
