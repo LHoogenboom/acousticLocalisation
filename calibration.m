@@ -25,7 +25,7 @@ Ny = length(mic.y.errAvg); % Nr of samples
 bar(l, N/(Ny*Wb));
 % clear i l N Ny Wb;
 
-%% 2
+%% 2 a
 experiment = importdata("experiment.mat");
 experiment.mic_locations = 100.*experiment.mic_locations;
 
@@ -35,21 +35,24 @@ for i=1:length(experiment.y(:,1))
     calibrated(i,:) = experiment.y(i,:)-mic.bias;
 end
 
-figure(2)
-hold on; grid on;
-for i = 1:7
-    plot(experiment.mic_locations(i,1),experiment.mic_locations(i,2), 'ro')
-end
+%% 2 b
 
-% theta = [x y t_pulse]
+% theta = [x y tau_k]
 th_hat0 = [10 60 0];
-th_hat = [th_hat0 ; zeros(length(experiment.y(:,1))-1,3)];
 
 %ftheta = (%?? ,experiment.mic_locations);
 
 % min eps|sig --> min [y-f(theta)], because y = f(theta)+eps
 % With f(theta) equals tau+d/c 
 % y does not incluse bias(calibrated data)
+
+%% plotting 2
+
+figure(2)
+hold on; grid on;
+for i = 1:7
+    plot(experiment.mic_locations(i,1),experiment.mic_locations(i,2), 'ro')
+end
 
 %% Functions
 function [th_hat, diagP] = nls(yk,stds,th_hat0,maxiter,mic_locations)
@@ -62,9 +65,15 @@ function dF = Jacobian(theta,mic_locations)
     
 end
 
-function ftheta = f(theta,mic_locations)
+function ftheta = f(th_hat,mic_locations)
+    % size th_hat = 3 by 7
+    % size ftheta = 7 by 1
+    ftheta = zeros(length(mic_locations(:,1)),1);
     c = 343; % speed of sound in [m/s]
-    %d_m(theta)  =((P_r,m|x-theta(1))^2+(P_r,m|y-theta(2))^2)^1/2
-    %ftheta = t_k +_d(theta)/c
     
+    for m=1:7
+        % f(theta)  = tau_k    + (1/c) * d
+        %d_m(theta) = theta(3) + (1/c) * (theta-p_m)^T * (theta-p_m)
+        ftheta(k) = th_hat(3) + (1/c) * sqrt((th_hat(1:2)-mic_locations(m,:)) * (th_hat(1:2)-mic_locations(m,:)'));
+    end
 end
