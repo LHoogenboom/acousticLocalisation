@@ -51,33 +51,36 @@ figure(3)
 plotresults(p,diagPKF,exp.mic_locations')
 
 %% 4
-Q = 1*mean(diag(stds))*eye(3);
-Q(3,3) = Q(3,3);
-R = eye(7);
+a = 0.0000005;
+Q = a*eye(3);
+Q(3,3) = (var(detrend(mean(y.cal,2))));
+R = mean(diag(stds.^2))*eye(7);
 
 
 
-p = ekfilt(y.cal',R,Q,time,exp.mic_locations);
+[p, diagPEKF] = ekfilt(y.cal',R,Q,time,exp.mic_locations);
 figure(4)
-plotresults(p(1:2,:),diagPKF,exp.mic_locations')
+plotresults(p(1:2,:),diagPEKF,exp.mic_locations')
 %% Functions
 
-function x = ekfilt(y, R, Q, time, miclocs)
+function [x, diagP] = ekfilt(y, R, Q, time, miclocs)
     x = zeros(3,length(y));
-    P = ones(3,3);
+    P = diag(1:3);
     Dtau = mean((mean(y(:,2:end)-y(:,1:end-1),2)));
     F = eye(3);
     
     for k = 1:time-1
-        H = Jacobian(y(:,k)', miclocs);
+        H = Jacobian(x(:,k)', miclocs);
+        
         % Measurement update
         K = P*H'/(H*P*H'+R);
         x(:,k) = x(:,k)+K*(y(:,k)-f(x(:,k)',miclocs)); % note that f() in script is h() in alaysis
         P = P-P*H'/(H*P*H'+R)*H*P;
         
         %time update
-        x(:,k+1) = x(:,k);
+        x(:,k+1) = x(:,k)+[0;0;Dtau];
         P = F*P*F'+Q;
+        diagP(k+1,:) = diag(P);
     end
 end
 
@@ -114,8 +117,8 @@ function [th_hat, diagP] = nls(y,stds,th_hat0,maxiter,miclocs)
     diagP =diag(P^-1);
 end
 
-function dist2 = d(th_hat,micloc)
-%       dist1 = sqrt((th_hat(1:2)-micloc) * (th_hat(1:2)-micloc)');
+function dist1 = d(th_hat,micloc)
+      dist1 = sqrt((th_hat(1:2)-micloc) * (th_hat(1:2)-micloc)');
       dist2 = sqrt(sum((th_hat(1:2)-micloc).^2));
 end
 
