@@ -37,13 +37,54 @@ for i=1:length(y.cal(:,1))-1
     [th_hat(i+1,:), diagP(i+1,:)] = nls(y.cal(i,:),stds,th_hat(i,:),maxiter,exp.mic_locations);
 end
 
+figure(2)
 plotresults(th_hat(:,1:2)',diagP,exp.mic_locations')
 
 %% 3
+p_til = th_hat(:,1:2)';
+p0 = [.1 ; .6];
+Q = 0.1*mean(diag(stds))*eye(2);
+R = 6*Q;
+time = length(p_til(1,:));
+[p, diagPKF] = kfilt(p_til, R, Q, time);
+figure(3)
+plotresults(p,diagPKF,exp.mic_locations')
 
+%% 4
 
+p = ekfilt(exp.y',R,Q,time,exp.mic_locations)
 
 %% Functions
+
+function x = ekfilt(y, R, Q, time, miclocs)
+    x = zeros(2,length(y));
+    
+    for k = 1:time
+       H = Jacobian(y(:,k), miclocs)
+       F = Jaocbian(x(:,k),miclocs)
+       I = eye(size(H))
+       % update
+       K = P*H'/(H*P*H'+R);
+       x(:,k) = x(:,k)+K(z(:,k)-h(x(:,k)));
+       P = (I-K*H)*P;
+       
+    end
+end
+
+function [x, diagP] = kfilt(y, R, Q, time)
+    % *osa indicates One-Step-Ahead prediction
+    
+    x = [y(:,1) zeros(2,length(y)-1)]; % x_hat(k|k) (after measuremtn update)
+    A = eye(2); C=A; % In this specific case
+    P = zeros(length(y(:,1))); % P(k|k)
+
+    for k=1:time-1  
+        K = P*C' /(R+C*P*C');       
+        P = A*P*A' + Q - (A*P*C')/(R+C*P*C')*(A*P*C)';
+        x(:,k+1) = A*x(:,k) +K*(y(:,k)-C*x(:,k));
+        diagP(k+1,:) = diag(P);
+    end
+end
 
 function [th_hat, diagP] = nls(y,stds,th_hat0,maxiter,miclocs)
     i=0;
