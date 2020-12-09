@@ -51,23 +51,33 @@ figure(3)
 plotresults(p,diagPKF,exp.mic_locations')
 
 %% 4
+Q = 1*mean(diag(stds))*eye(3);
+Q(3,3) = Q(3,3);
+R = eye(7);
 
-p = ekfilt(exp.y',R,Q,time,exp.mic_locations)
 
+
+p = ekfilt(y.cal',R,Q,time,exp.mic_locations);
+figure(4)
+plotresults(p(1:2,:),diagPKF,exp.mic_locations')
 %% Functions
 
 function x = ekfilt(y, R, Q, time, miclocs)
-    x = zeros(2,length(y));
+    x = zeros(3,length(y));
+    P = ones(3,3);
+    Dtau = mean((mean(y(:,2:end)-y(:,1:end-1),2)));
+    F = eye(3);
     
-    for k = 1:time
-       H = Jacobian(y(:,k), miclocs)
-       F = Jaocbian(x(:,k),miclocs)
-       I = eye(size(H))
-       % update
-       K = P*H'/(H*P*H'+R);
-       x(:,k) = x(:,k)+K(z(:,k)-h(x(:,k)));
-       P = (I-K*H)*P;
-       
+    for k = 1:time-1
+        H = Jacobian(y(:,k)', miclocs);
+        % Measurement update
+        K = P*H'/(H*P*H'+R);
+        x(:,k) = x(:,k)+K*(y(:,k)-f(x(:,k)',miclocs)); % note that f() in script is h() in alaysis
+        P = P-P*H'/(H*P*H'+R)*H*P;
+        
+        %time update
+        x(:,k+1) = x(:,k);
+        P = F*P*F'+Q;
     end
 end
 
@@ -104,8 +114,9 @@ function [th_hat, diagP] = nls(y,stds,th_hat0,maxiter,miclocs)
     diagP =diag(P^-1);
 end
 
-function dist = d(th_hat,micloc)
-    dist = sqrt((th_hat(1:2)-micloc) * (th_hat(1:2)-micloc)');
+function dist2 = d(th_hat,micloc)
+%       dist1 = sqrt((th_hat(1:2)-micloc) * (th_hat(1:2)-micloc)');
+      dist2 = sqrt(sum((th_hat(1:2)-micloc).^2));
 end
 
 function ftheta = f(th_hat,mic_locations)
@@ -118,7 +129,7 @@ end
 
 function dF = Jacobian(theta,miclocs)
     c = 343; % speed of sound in [m/s]
-    dF = zeros(length(miclocs(:,1)),length(theta(1,:)));
+    dF = zeros(7,3);
     for m=1:7
         dF(m,:) = [(theta(1)-miclocs(m,1))/(c*d(theta,miclocs(m,:)))  (theta(2)-miclocs(m,2))/(c*d(theta,miclocs(m,:)))  1];
     end
