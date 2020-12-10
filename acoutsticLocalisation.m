@@ -36,6 +36,7 @@ th_hat =  th_hat0 ;zeros(length(y.cal(:,1))-1,3);
 for i=1:length(y.cal(:,1))-1
     [th_hat(i+1,:), diagP(i+1,:)] = nls(y.cal(i,:),stds,th_hat(i,:),maxiter,exp.mic_locations);
 end
+test = mean(diagP(:,1:2),1)';
 
 figure(2)
 plotresults(th_hat(:,1:2)',diagP,exp.mic_locations')
@@ -43,8 +44,9 @@ plotresults(th_hat(:,1:2)',diagP,exp.mic_locations')
 %% 3
 p_til = th_hat(:,1:2)';
 p0 = [.1 ; .6];
-Q = 0.1*mean(diag(stds))*eye(2);
-R = 6*Q;
+
+R = eye(2)*test;
+Q = 1.6*R;
 time = length(p_til(1,:));
 [p, diagPKF] = kfilt(p_til, R, Q, time);
 figure(3)
@@ -89,7 +91,7 @@ function [x, diagP] = kfilt(y, R, Q, time)
     
     x = [y(:,1) zeros(2,length(y)-1)]; % x_hat(k|k) (after measuremtn update)
     A = eye(2); C=A; % In this specific case
-    P = zeros(length(y(:,1))); % P(k|k)
+    P = 1*magic(2);
 
     for k=1:time-1  
         K = P*C' /(R+C*P*C');       
@@ -134,6 +136,8 @@ function dF = Jacobian(theta,miclocs)
     c = 343; % speed of sound in [m/s]
     dF = zeros(7,3);
     for m=1:7
-        dF(m,:) = [(theta(1)-miclocs(m,1))/(c*d(theta,miclocs(m,:)))  (theta(2)-miclocs(m,2))/(c*d(theta,miclocs(m,:)))  1];
+        J1 = (theta(1)-miclocs(m,1)) / (c*d(theta,miclocs(m,:)));
+        J2 = (theta(2)-miclocs(m,2)) / (c*d(theta,miclocs(m,:)));
+        dF(m,:) = [J1  J2  1];
     end
 end
